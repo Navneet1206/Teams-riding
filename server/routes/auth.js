@@ -10,9 +10,7 @@ import OTP from '../models/OTP.js';
 import { auth } from '../middleware/auth.js';
 import multer from 'multer';
 
-const router = express.Router();
-
-// Configure multer for file uploads
+// Multer configuration for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'uploads/');
@@ -22,15 +20,15 @@ const storage = multer.diskStorage({
     cb(null, file.fieldname + '-' + uniqueSuffix + '.' + file.originalname.split('.').pop());
   }
 });
-
 const upload = multer({ storage });
 
-// Send OTP via email
+const router = express.Router();
+
+// 🔹 Send OTP via email
 const sendEmailOTP = async (user, email) => {
   const otp = generateOTP();
   const emailContent = createOTPEmail(otp);
 
-  // Save OTP to database
   const otpDoc = new OTP({
     userId: user._id,
     email,
@@ -40,7 +38,6 @@ const sendEmailOTP = async (user, email) => {
   });
   await otpDoc.save();
 
-  // Send email
   await transporter.sendMail({
     from: process.env.SMTP_FROM,
     to: email,
@@ -51,12 +48,11 @@ const sendEmailOTP = async (user, email) => {
   return otpDoc;
 };
 
-// Send OTP via SMS
+// 🔹 Send OTP via SMS
 const sendPhoneOTP = async (user, phone) => {
   const otp = generateOTP();
   const message = createOTPMessage(otp);
 
-  // Save OTP to database
   const otpDoc = new OTP({
     userId: user._id,
     phone,
@@ -66,32 +62,26 @@ const sendPhoneOTP = async (user, phone) => {
   });
   await otpDoc.save();
 
-  // Send SMS
   await sendSMS(phone, message);
 
   return otpDoc;
 };
 
-// User signup
+// ✅ User Signup
 router.post('/user/signup', upload.single('profilePhoto'), async (req, res) => {
   try {
     const { firstName, lastName, email, phone, password } = req.body;
 
-    // Validate phone number
     if (!/^\d{10}$/.test(phone)) {
       return res.status(400).json({ message: 'Invalid phone number format' });
     }
 
-    // Check if user exists
     const existingUser = await User.findOne({ $or: [{ email }, { phone }] });
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user
     const user = new User({
       firstName,
       lastName,
@@ -104,40 +94,22 @@ router.post('/user/signup', upload.single('profilePhoto'), async (req, res) => {
 
     await user.save();
 
-    // Send verification OTPs
-    await Promise.all([
-      sendEmailOTP(user, email),
-      sendPhoneOTP(user, phone)
-    ]);
-
-    // Generate token
+    await Promise.all([sendEmailOTP(user, email), sendPhoneOTP(user, phone)]);
     const token = generateToken(user._id, 'user');
 
-    res.status(201).json({
-      token,
-      user: {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        phone: user.phone,
-        profilePhoto: user.profilePhoto,
-        verified: user.verified
-      }
-    });
+    res.status(201).json({ token, user });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Verify OTP
+// ✅ Verify OTP
 router.post('/verify-otp', auth, async (req, res) => {
   try {
     const { otp, type } = req.body;
     const userId = req.user.id;
 
-    // Find the latest unverified OTP
     const otpDoc = await OTP.findOne({
       userId,
       type,
@@ -145,26 +117,19 @@ router.post('/verify-otp', auth, async (req, res) => {
       expiresAt: { $gt: new Date() }
     }).sort('-createdAt');
 
-    if (!otpDoc) {
+    if (!otpDoc || otpDoc.otp !== otp) {
       return res.status(400).json({ message: 'Invalid or expired OTP' });
     }
 
-    if (otpDoc.otp !== otp) {
-      return res.status(400).json({ message: 'Invalid OTP' });
-    }
-
-    // Mark OTP as verified
     otpDoc.verified = true;
     await otpDoc.save();
 
-    // Check if both email and phone are verified
     const [emailVerified, phoneVerified] = await Promise.all([
       OTP.exists({ userId, type: 'email', verified: true }),
       OTP.exists({ userId, type: 'phone', verified: true })
     ]);
 
     if (emailVerified && phoneVerified) {
-      // Update user verification status
       const user = await User.findById(userId);
       user.verified = true;
       await user.save();
@@ -177,7 +142,7 @@ router.post('/verify-otp', auth, async (req, res) => {
   }
 });
 
-// Resend OTP
+// ✅ Resend OTP
 router.post('/resend-otp', auth, async (req, res) => {
   try {
     const { type } = req.body;
@@ -198,6 +163,99 @@ router.post('/resend-otp', auth, async (req, res) => {
   }
 });
 
-// Other existing routes...
+// ✅ User Login
+router.post('/user/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    const token = generateToken(user._id, 'user');
+    res.json({ token, user });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ✅ Admin Login
+router.post('/admin/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const admin = await Admin.findOne({ email });
+
+    if (!admin || !(await bcrypt.compare(password, admin.password))) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    const token = generateToken(admin._id, 'admin');
+    res.json({ token, admin });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ✅ Create an Admin (Only for initial setup)
+router.post('/admin/create', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const existingAdmin = await Admin.findOne({ email });
+
+    if (existingAdmin) {
+      return res.status(400).json({ message: 'Admin already exists' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const admin = new Admin({ email, password: hashedPassword });
+    await admin.save();
+
+    res.status(201).json({ message: 'Admin created successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ✅ Password Reset (Forgetting Password)
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+    const user = await User.findOne({ email }) || await Admin.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    res.json({ message: 'Password reset successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ✅ Get Profile (Authenticated Users)
+router.get('/profile', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password') ||
+                 await Admin.findById(req.user.id).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
 export default router;
