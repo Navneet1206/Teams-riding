@@ -1,5 +1,5 @@
 {
-  "name": "ride-sharing-website",
+  "name": "ride-sharing-website-frontend",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -7,31 +7,19 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "server": "node server/index.js"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@mapbox/mapbox-gl-geocoder": "^5.0.2",
     "axios": "^1.6.7",
-    "bcryptjs": "^2.4.3",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.18.3",
-    "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.344.0",
     "mapbox-gl": "^3.2.0",
-    "mongoose": "^8.2.1",
-    "multer": "^1.4.5-lts.1",
-    "nodemailer": "^6.9.12",
-    "razorpay": "^2.9.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-map-gl": "^7.1.7",
     "react-router-dom": "^6.22.3",
     "recharts": "^2.12.2",
-    "socket.io": "^4.7.4",
-    "socket.io-client": "^4.7.4",
-    "twilio": "^4.23.0"
+    "socket.io-client": "^4.7.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
@@ -43,7 +31,6 @@
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.11",
     "globals": "^15.9.0",
-    "nodemon": "^3.1.0",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
     "vite": "^5.4.2"
