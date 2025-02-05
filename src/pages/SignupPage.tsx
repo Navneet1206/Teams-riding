@@ -107,29 +107,50 @@ const SignupPage = () => {
       setError(validationError);
       return;
     }
-
+  
     setLoading(true);
     setError(null);
     setSuccess(null);
-
+  
     const formDataToSend = new FormData();
-    Object.entries(formData).forEach(([key, value]) => {
-      if (value !== null && value !== '') {
-        formDataToSend.append(key, value);
-      }
-    });
-
+  
+    // 🔹 Fix: Ensure correct field names based on userType
+    if (userType === 'user') {
+      formDataToSend.append('firstName', formData.firstName);
+      formDataToSend.append('lastName', formData.lastName);
+    } else {
+      formDataToSend.append('name', formData.firstName); // 🔹 Fix: Rename for Captains
+      formDataToSend.append('licenseNumber', formData.licenseNumber);
+      formDataToSend.append('taxiLocation', formData.taxiLocation);
+      formDataToSend.append('vehicleNumber', formData.vehicleNumber);
+      formDataToSend.append('age', formData.age);
+      formDataToSend.append('vehicleType', formData.vehicleType);
+    }
+  
+    // Common Fields for Both User & Captain
+    formDataToSend.append('email', formData.email);
+    formDataToSend.append('phone', formData.phone);
+    formDataToSend.append('password', formData.password);
+    
+    if (formData.profilePhoto) {
+      formDataToSend.append('profilePhoto', formData.profilePhoto);
+    }
+  
+    if (userType === 'captain' && formData.licensePhoto) {
+      formDataToSend.append('licensePhoto', formData.licensePhoto);
+    }
+  
     try {
       const response = await fetch(`/api/auth/${userType}/signup`, {
         method: 'POST',
         body: formDataToSend,
       });
-
+  
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Signup failed');
       }
-
+  
       setSuccess('Signup successful! Redirecting to login...');
       setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
@@ -138,7 +159,7 @@ const SignupPage = () => {
       setLoading(false);
     }
   };
-
+  
   // Cleanup function for image preview URL
   React.useEffect(() => {
     return () => {
