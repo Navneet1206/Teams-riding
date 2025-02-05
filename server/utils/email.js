@@ -1,6 +1,9 @@
+import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 
-const transporter = nodemailer.createTransport({
+dotenv.config();
+
+export const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: process.env.SMTP_PORT,
   secure: true,
@@ -53,4 +56,4 @@ export const sendRideConfirmation = async (user, ride) => {
   } catch (error) {
     console.error('Email sending failed:', error);
   }
-};
+}; 

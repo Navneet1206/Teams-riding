@@ -9,6 +9,9 @@ import Admin from '../models/Admin.js';
 import OTP from '../models/OTP.js';
 import { auth } from '../middleware/auth.js';
 import multer from 'multer';
+import { validateEmail, validatePhone, validatePassword } from '../utils/validation.js';
+import { transporter } from '../utils/email.js';
+
 
 // Multer configuration for file uploads
 const storage = multer.diskStorage({
