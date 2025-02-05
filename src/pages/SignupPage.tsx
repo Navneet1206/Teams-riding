@@ -44,18 +44,24 @@ const SignupPage = () => {
   const navigate = useNavigate();
 
   const validateForm = (): string | null => {
-    if (formData.password.length < 8) {
-      return 'Password must be at least 8 characters long';
+    // Add captain-specific validations
+    if (userType === 'captain') {
+      if (!formData.licenseNumber || !formData.taxiLocation || 
+          !formData.vehicleNumber || !formData.age) {
+        return 'All captain fields are required';
+      }
+      const ageNum = parseInt(formData.age, 10);
+      if (isNaN(ageNum) || ageNum < 18 || ageNum > 70) {
+        return 'Age must be between 18-70';
+      }
     }
-    if (formData.password !== formData.confirmPassword) {
-      return 'Passwords do not match';
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      return 'Please enter a valid email address';
-    }
-    if (!/^\d{10}$/.test(formData.phone)) {
-      return 'Please enter a valid 10-digit phone number';
-    }
+  
+    // Existing validations
+    if (formData.password.length < 8) return 'Password must be at least 8 characters';
+    if (formData.password !== formData.confirmPassword) return 'Passwords do not match';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return 'Invalid email format';
+    if (!/^\d{10}$/.test(formData.phone)) return 'Invalid phone number';
+    
     return null;
   };
 

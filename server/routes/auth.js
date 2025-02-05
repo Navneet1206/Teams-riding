@@ -72,15 +72,30 @@ router.post('/user/signup', upload.single('profilePhoto'), async (req, res) => {
   try {
     const { firstName, lastName, email, phone, password } = req.body;
 
-    if (!/^\d{10}$/.test(phone)) {
-      return res.status(400).json({ message: 'Invalid phone number format' });
+    // Validation checks
+    if (!firstName || !lastName || !email || !phone || !password) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+    if (!validateEmail(email)) {
+      return res.status(400).json({ message: 'Invalid email format' });
+    }
+    if (!validatePhone(phone)) {
+      return res.status(400).json({ message: 'Phone must be 10 digits' });
+    }
+    if (!validatePassword(password)) {
+      return res.status(400).json({ 
+        message: 'Password must be 8+ chars with uppercase, lowercase, and number'
+      });
     }
 
+    // Existing user check
     const existingUser = await User.findOne({ $or: [{ email }, { phone }] });
     if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
+      const conflictField = existingUser.email === email ? 'Email' : 'Phone';
+      return res.status(409).json({ message: `${conflictField} already exists` });
     }
 
+    // Create user
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = new User({
       firstName,
@@ -88,19 +103,19 @@ router.post('/user/signup', upload.single('profilePhoto'), async (req, res) => {
       email,
       phone,
       password: hashedPassword,
-      profilePhoto: req.file ? req.file.path : null,
-      verified: false
+      profilePhoto: req.file?.path || null,
     });
 
     await user.save();
 
+    // Send OTPs and respond
     await Promise.all([sendEmailOTP(user, email), sendPhoneOTP(user, phone)]);
     const token = generateToken(user._id, 'user');
+    res.status(201).json({ token, user: { ...user._doc, password: undefined } });
 
-    res.status(201).json({ token, user });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error during signup' });
   }
 });
 
@@ -110,56 +125,77 @@ router.post('/captain/signup', upload.fields([
   { name: 'licensePhoto', maxCount: 1 }
 ]), async (req, res) => {
   try {
-    const {
-      name,
-      email,
-      phone,
-      password,
-      licenseNumber,
-      taxiLocation,
-      vehicleNumber,
-      vehicleType,
-      age
+    const { 
+      name, email, phone, password, licenseNumber,
+      taxiLocation, vehicleNumber, vehicleType, age 
     } = req.body;
 
-    if (!/^\d{10}$/.test(phone)) {
-      return res.status(400).json({ message: 'Invalid phone number format' });
+    // Validation checks
+    const requiredFields = [
+      'name', 'email', 'phone', 'password', 'licenseNumber',
+      'taxiLocation', 'vehicleNumber', 'vehicleType', 'age'
+    ];
+    if (requiredFields.some(field => !req.body[field])) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+    if (!validateEmail(email)) {
+      return res.status(400).json({ message: 'Invalid email format' });
+    }
+    if (!validatePhone(phone)) {
+      return res.status(400).json({ message: 'Phone must be 10 digits' });
+    }
+    if (!validatePassword(password)) {
+      return res.status(400).json({ 
+        message: 'Password must be 8+ chars with uppercase, lowercase, and number'
+      });
+    }
+    if (!['hatchback', 'sedan', 'suv', 'muv'].includes(vehicleType)) {
+      return res.status(400).json({ message: 'Invalid vehicle type' });
+    }
+    if (!req.files?.licensePhoto) {
+      return res.status(400).json({ message: 'License photo is required' });
     }
 
+    // Age validation
+    const ageNum = parseInt(age, 10);
+    if (isNaN(ageNum) || ageNum < 18 || ageNum > 70) {
+      return res.status(400).json({ message: 'Age must be between 18-70' });
+    }
+
+    // Existing captain check
     const existingCaptain = await Captain.findOne({ $or: [{ email }, { phone }] });
     if (existingCaptain) {
-      return res.status(400).json({ message: 'Captain already exists' });
+      const conflictField = existingCaptain.email === email ? 'Email' : 'Phone';
+      return res.status(409).json({ message: `${conflictField} already exists` });
     }
 
+    // Create captain
     const hashedPassword = await bcrypt.hash(password, 10);
     const captain = new Captain({
       name,
       email,
       phone,
       password: hashedPassword,
-      profilePhoto: req.files.profilePhoto ? req.files.profilePhoto[0].path : null,
       licenseNumber,
-      licensePhoto: req.files.licensePhoto ? req.files.licensePhoto[0].path : null,
       taxiLocation,
       vehicleNumber,
       vehicleType,
-      age,
-      location: {
-        type: 'Point',
-        coordinates: [0, 0] // Default coordinates, to be updated via frontend
-      },
-      isAvailable: true
+      age: ageNum,
+      profilePhoto: req.files.profilePhoto?.[0]?.path || null,
+      licensePhoto: req.files.licensePhoto[0].path,
+      location: { type: 'Point', coordinates: [0, 0] },
     });
 
     await captain.save();
 
+    // Send OTPs and respond
     await Promise.all([sendEmailOTP(captain, email), sendPhoneOTP(captain, phone)]);
     const token = generateToken(captain._id, 'captain');
+    res.status(201).json({ token, captain: { ...captain._doc, password: undefined } });
 
-    res.status(201).json({ token, captain });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error during signup' });
   }
 });
 
