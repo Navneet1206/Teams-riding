@@ -115,6 +115,15 @@ router.post('/user/signup', upload.single('profilePhoto'), async (req, res) => {
     await Promise.all([sendEmailOTP(user, email), sendPhoneOTP(user, phone)]);
     const token = generateToken(user._id, 'user');
     res.status(201).json({ token, user: { ...user._doc, password: undefined } });
+    if (!user) {
+      return res.status(500).json({ message: 'User not created, try again' });
+    }
+    
+    res.status(201).json({
+      message: 'Signup successful!',
+      user: { ...user._doc, password: undefined }
+    });
+    
 
   } catch (error) {
     console.error(error);
@@ -195,7 +204,15 @@ router.post('/captain/signup', upload.fields([
     await Promise.all([sendEmailOTP(captain, email), sendPhoneOTP(captain, phone)]);
     const token = generateToken(captain._id, 'captain');
     res.status(201).json({ token, captain: { ...captain._doc, password: undefined } });
-
+    if (!user) {
+      return res.status(500).json({ message: 'User not created, try again' });
+    }
+    
+    res.status(201).json({
+      message: 'Signup successful!',
+      user: { ...user._doc, password: undefined }
+    });
+    
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error during signup' });
@@ -283,6 +300,43 @@ router.get('/profile', auth, async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ✅ Verify OTP API
+router.post('/verify-otp', async (req, res) => {
+  try {
+    const { otp, type } = req.body;
+    if (!otp || !type) {
+      return res.status(400).json({ message: 'OTP and type (email/phone) are required' });
+    }
+
+    // Find OTP entry in database
+    const otpDoc = await OTP.findOne({ [type]: req.user[type], otp })
+      .sort({ createdAt: -1 }); // Get latest OTP
+
+    if (!otpDoc) {
+      return res.status(404).json({ message: 'Invalid OTP' });
+    }
+
+    // Check if OTP is expired
+    if (otpDoc.expiresAt < new Date()) {
+      return res.status(400).json({ message: 'OTP expired' });
+    }
+
+    // Mark OTP as verified
+    otpDoc.verified = true;
+    await otpDoc.save();
+
+    // Find and update user verification status
+    const updateData = type === 'email' ? { emailVerified: true } : { phoneVerified: true };
+    const user = await User.findOneAndUpdate({ [type]: req.user[type] }, updateData, { new: true });
+
+    res.status(200).json({ message: `${type} verified successfully`, user });
+
+  } catch (error) {
+    console.error('OTP verification error:', error);
+    res.status(500).json({ message: 'Server error during OTP verification' });
   }
 });
 

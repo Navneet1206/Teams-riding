@@ -39,7 +39,6 @@ export const auth = {
   // 🔹 Fix: Separate signup for user & captain
   signupUser: (userData) => api.post('/api/auth/user/signup', userData),
   signupCaptain: (captainData) => api.post('/api/auth/captain/signup', captainData),
-
   verifyOTP: (data) => api.post('/api/auth/verify-otp', data),
   resendOTP: (type) => api.post('/api/auth/resend-otp', { type }),
 

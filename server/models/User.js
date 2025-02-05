@@ -7,6 +7,8 @@ const userSchema = new mongoose.Schema({
   phone: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   profilePhoto: { type: String },
+  emailVerified: { type: Boolean, default: false },  // ✅ New Field
+  phoneVerified: { type: Boolean, default: false },  // ✅ New Field
   rides: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Ride' }],
   createdAt: { type: Date, default: Date.now }
 });

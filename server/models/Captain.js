@@ -16,6 +16,8 @@ const captainSchema = new mongoose.Schema({
     enum: ['hatchback', 'sedan', 'suv', 'muv'],
     required: true
   },
+  emailVerified: { type: Boolean, default: false },  // ✅ New Field
+  phoneVerified: { type: Boolean, default: false },  // ✅ New Field
   location: {
     type: {
       type: String,

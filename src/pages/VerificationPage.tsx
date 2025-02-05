@@ -23,10 +23,17 @@ const VerificationPage = () => {
     try {
       setLoading(true);
       setError('');
-
+  
       const otp = type === 'email' ? emailOTP : phoneOTP;
-      await axios.post('/api/auth/verify-otp', { otp, type });
-
+      const payload = {
+        otp,
+        type,
+        email: user?.email,
+        phone: user?.phone
+      };
+  
+      await axios.post('/api/auth/verify-otp', payload);
+  
       setSuccess(prev => ({ ...prev, [type]: true }));
       if (success[type === 'email' ? 'phone' : 'email']) {
         navigate('/user/dashboard');
@@ -37,6 +44,7 @@ const VerificationPage = () => {
       setLoading(false);
     }
   };
+  
 
   const handleResend = async (type) => {
     try {
